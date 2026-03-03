@@ -3,12 +3,12 @@ USERS = {
         "client_id": None
     },
     "logged_in": {
-        "client_id": "CLIENT_A"
+        "client_id": "1708192829473"
     },
     "subscribed": {
-        "client_id": "CLIENT_B"
+        "client_id": "1669009497053"
     },
     "non_subscribed": {
-        "client_id": "CLIENT_C"
+        "client_id": "1695199645253"
     }
 }

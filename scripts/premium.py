@@ -42,7 +42,7 @@ PROVIDER_IDS = [
 ]
 
 
-def get_premium_titles(limit=100):
+def get_premium_titles(limit=10):
     """
     Fetch latest published premium titles directly from OpenSearch.
     Returns list of title names.
