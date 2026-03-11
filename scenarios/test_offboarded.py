@@ -1,4 +1,5 @@
 from scripts.offboarded import get_offboarded_titles
+from config.mongo_client import get_offboarded_provider_ids, user_has_offboarded_provider
 import pytest
 from config.platforms import PLATFORMS
 from config.users import USERS
@@ -7,11 +8,29 @@ from utils.api_client import search_api
 if not hasattr(pytest, "offboarded_results_summary"):
     pytest.offboarded_results_summary = []
 
-# Fetch offboarded titles with their provider names
+# Fetch offboarded titles with provider names
 offboarded_data = get_offboarded_titles(limit=100)
 
 if not offboarded_data:
     pytest.skip("No offboarded content found", allow_module_level=True)
+
+# Fetch offboarded provider IDs once for user subscription check
+offboarded_provider_ids = get_offboarded_provider_ids()
+
+# ✅ Pre-check each user — does their active subscription include an offboarded provider?
+# This is computed once at session start, not per test
+user_has_offboarded = {}
+for user_type, user_config in USERS.items():
+    client_id = user_config.get("client_id")
+    if client_id:
+        user_has_offboarded[user_type] = user_has_offboarded_provider(
+            client_id, offboarded_provider_ids
+        )
+    else:
+        # non_logged_in has no client_id — never has a subscription
+        user_has_offboarded[user_type] = False
+
+print(f"\n[offboarded] User subscription check: {user_has_offboarded}")
 
 # Parametrize as (name, provider) tuples
 offboarded_params = [(r["name"], r["provider"]) for r in offboarded_data]
@@ -21,13 +40,17 @@ offboarded_params = [(r["name"], r["provider"]) for r in offboarded_data]
 @pytest.mark.parametrize("query,provider_name", offboarded_params)
 def test_offboarded_dataset(query, provider_name):
     """
-    Checks that offboarded provider content does NOT appear in search results.
-    If the content IS found — test FAILS (offboarded content should not be visible).
-    Runs across all platforms and all user types.
+    Offboarded content visibility logic:
+
+    - User HAS active subscription with offboarded provider
+      → content SHOULD appear → PASSED if found, FAILED if not found
+
+    - User does NOT have offboarded provider (expired, non-subscribed, non-logged-in)
+      → content should be HIDDEN → PASSED if not found, FAILED if found
     """
 
-    expected_title = query
-    top_limit      = 5
+    expected_title      = query
+    top_limit           = 5
     failed_combinations = []
 
     for platform_name, platform_config in PLATFORMS.items():
@@ -45,25 +68,36 @@ def test_offboarded_dataset(query, provider_name):
                     position = index + 1
                     break
 
-            # ✅ For offboarded: PASSED means NOT found, FAILED means it appeared
-            status = "FAILED" if position != -1 else "PASSED"
+            found = position != -1
+
+            # ✅ Logic depends on whether user has offboarded provider in subscription
+            if user_has_offboarded[user_type]:
+                # User subscribed to this provider → content MUST appear
+                status   = "PASSED" if found else "FAILED"
+                expected = "Should appear (active subscription with offboarded provider)"
+            else:
+                # User not subscribed / expired / non-logged-in → content must be HIDDEN
+                status   = "PASSED" if not found else "FAILED"
+                expected = "Should be hidden (no active subscription for offboarded provider)"
 
             pytest.offboarded_results_summary.append({
                 "Query":               query,
-                "Provider":            provider_name,    # ✅ offboarded provider name
+                "Provider":            provider_name,
                 "Platform":            platform_name,
                 "User Type":           user_type,
+                "Has Offboarded Sub":  user_has_offboarded[user_type],
+                "Expected Behavior":   expected,
                 "Top Limit":           top_limit,
-                "Position Found":      position if position != -1 else "Not Found",
+                "Position Found":      position if found else "Not Found",
                 "Response Time (sec)": round(response_time, 3),
                 "Status":              status,
             })
 
-            if position != -1:
+            if status == "FAILED":
                 failed_combinations.append(f"{platform_name}-{user_type}")
 
     if failed_combinations:
         pytest.fail(
-            f"FAILED → Offboarded content '{query}' [{provider_name}] "
-            f"still appearing on: {failed_combinations}"
+            f"FAILED → '{query}' [{provider_name}] | "
+            f"Failed for: {failed_combinations}"
         )

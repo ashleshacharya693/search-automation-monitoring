@@ -106,3 +106,55 @@ def get_provider_ids_by_plan(plan_code):
         return provider_ids
     finally:
         client.close()
+
+
+def user_has_offboarded_provider(user_id, offboarded_provider_ids):
+    """
+    Check if a user has an active subscription that includes
+    any offboarded provider.
+
+    Logic:
+    - Collection: ottplay_v2_user_subscription
+    - Filter: user_id, status=active, expiry_date >= today
+    - Check: if any provider in their subscription matches offboarded_provider_ids
+
+    Returns True  → user HAS offboarded provider → content SHOULD appear
+    Returns False → user does NOT → content should be HIDDEN
+    """
+    from datetime import datetime, timezone
+
+    client = MongoClient(MONGO_URI)
+    try:
+        db         = client[MONGO_DB]
+        collection = db["ottplay_v2_user_subscription"]
+        today      = datetime.now(timezone.utc)
+
+        subscription = collection.find_one({
+            "user_id":     str(user_id),
+            "status":      "active",
+            "expiry_date": {"$gte": today}
+        })
+
+        if not subscription:
+            print(f"[mongo] No active subscription found for user: {user_id}")
+            return False
+
+        # Extract provider IDs from user's subscription
+        user_providers = []
+        for provider in subscription.get("providers", []):
+            if isinstance(provider, dict):
+                pid = provider.get("_id") or provider.get("id")
+            else:
+                pid = provider
+            if pid:
+                user_providers.append(str(pid))
+
+        # Check if any offboarded provider exists in user's subscription
+        offboarded_set = set(offboarded_provider_ids)
+        has_offboarded = any(p in offboarded_set for p in user_providers)
+
+        print(f"[mongo] User {user_id} has offboarded provider: {has_offboarded}")
+        return has_offboarded
+
+    finally:
+        client.close()
