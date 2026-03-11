@@ -13,7 +13,7 @@ def _write_sheet(ws, results, title):
 
     if not results:
         ws.cell(row=1, column=1, value=f"No {title} results found.")
-        return
+        return None
 
     headers = list(results[0].keys())
 
@@ -48,13 +48,21 @@ def _write_sheet(ws, results, title):
     accuracy = (passed / total) * 100 if total > 0 else 0
 
     summary_start = total + 3
-    ws.cell(row=summary_start,     column=1, value="Total Tests:").font = Font(bold=True)
-    ws.cell(row=summary_start,     column=2, value=total)
-    ws.cell(row=summary_start + 1, column=1, value="Passed:").font = Font(bold=True)
+
+    cell = ws.cell(row=summary_start, column=1, value="Total Tests:")
+    cell.font = Font(bold=True)
+    ws.cell(row=summary_start, column=2, value=total)
+
+    cell = ws.cell(row=summary_start + 1, column=1, value="Passed:")
+    cell.font = Font(bold=True)
     ws.cell(row=summary_start + 1, column=2, value=passed)
-    ws.cell(row=summary_start + 2, column=1, value="Failed:").font = Font(bold=True)
+
+    cell = ws.cell(row=summary_start + 2, column=1, value="Failed:")
+    cell.font = Font(bold=True)
     ws.cell(row=summary_start + 2, column=2, value=failed)
-    ws.cell(row=summary_start + 3, column=1, value="Accuracy %:").font = Font(bold=True)
+
+    cell = ws.cell(row=summary_start + 3, column=1, value="Accuracy %:")
+    cell.font = Font(bold=True)
     ws.cell(row=summary_start + 3, column=2, value=round(accuracy, 2))
 
     return total, passed, failed, accuracy
@@ -108,3 +116,15 @@ def pytest_sessionfinish(session, exitstatus):
         )
     else:
         print("\n⚠️  No live match results to report.")
+
+    # ── Offboarded report ─────────────────────────────────────────────────────
+    offboarded_results = getattr(pytest, "offboarded_results_summary", [])
+    if offboarded_results:
+        _save_report(
+            results     = offboarded_results,
+            sheet_title = "Offboarded Report",
+            filename    = "reports/offboarded_report.xlsx",
+            label       = "Offboarded",
+        )
+    else:
+        print("\n⚠️  No offboarded results to report.")
