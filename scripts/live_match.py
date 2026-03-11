@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 # ==============================
 # 🔹 OPENSEARCH CONNECTION
 # ==============================
-OPENSEARCH_HOST = "pc-ott-es-prod-tno62hs6fe7gs6zojencjn4eai.ap-south-1.es.amazonaws.com"
+OPENSEARCH_HOST = "vpc-ott-es-prod-tno62hs6fe7gs6zojencjn4eai.ap-south-1.es.amazonaws.com"
 INDEX_NAME = "ott_search_tv"
 
 PROVIDER_IDS = [
@@ -44,13 +44,14 @@ PROVIDER_IDS = [
 ]
 
 
-def get_live_match_titles(limit=100):
+def get_live_match_titles(limit=10):
     """
     Fetch published live match titles for TODAY from OpenSearch.
     - is_live_match must be True
-    - match_start_time falls within today's UTC date range
+    - sort_priority_release_date falls within today's UTC date range
     - Excludes extras/trailers
-    - Returns list of title names sorted by match_start_time ascending
+    - Returns list of title names sorted by sort_priority_release_date ascending
+    - Returns empty list gracefully if no matches found today
     """
 
     es = OpenSearch(
@@ -60,10 +61,12 @@ def get_live_match_titles(limit=100):
         ssl_show_warn=False,
     )
 
-    # ✅ Today's UTC date boundaries
+    # Today's UTC date boundaries
     now         = datetime.now(timezone.utc)
     today_start = now.replace(hour=0,  minute=0,  second=0,  microsecond=0).isoformat()
     today_end   = now.replace(hour=23, minute=59, second=59, microsecond=999000).isoformat()
+
+    print(f"[live_match] Searching for matches on: {now.strftime('%Y-%m-%d')} (UTC)")
 
     query = {
         "size": limit,
@@ -85,10 +88,10 @@ def get_live_match_titles(limit=100):
                             "where_to_watch.provider.id.keyword": PROVIDER_IDS
                         }
                     },
-                    {"term": {"is_live_match": True}},      # ✅ live matches only
+                    {"term": {"is_live_match": True}},          # ✅ live matches only
                     {
-                        "range": {                          # ✅ only today's matches
-                            "match_start_time": {
+                        "range": {                              # ✅ today's date range
+                            "sort_priority_release_date": {    # ✅ actual field from index
                                 "gte": today_start,
                                 "lte": today_end,
                             }
@@ -104,13 +107,17 @@ def get_live_match_titles(limit=100):
                 ],
             }
         },
-        "sort": [{"match_start_time": {"order": "asc"}}],  # ✅ earliest match first
+        "sort": [{"sort_priority_release_date": {"order": "asc"}}],  # earliest first
     }
 
     response = es.search(index=INDEX_NAME, body=query)
 
     total = response["hits"]["total"]["value"]
-    print(f"Today's live matches found in index: {total}")
+    print(f"[live_match] Today's live matches found: {total}")
+
+    if total == 0:
+        print("[live_match] ⚠️  No live matches scheduled for today — skipping tests.")
+        return []
 
     titles = [
         hit["_source"]["name"]
@@ -140,7 +147,7 @@ def save_to_csv(titles):
 # 🔹 ENTRYPOINT
 # ==============================
 if __name__ == "__main__":
-    titles = get_live_match_titles(limit=100)
+    titles = get_live_match_titles(limit=10)
     print(f"\nFetched {len(titles)} titles")
     for t in titles:
         print(f"  • {t}")
