@@ -1,4 +1,4 @@
-from opensearchpy import OpenSearch
+from config.opensearch_client import get_es_client, INDEX_NAME
 from config.mongo_client import get_active_provider_ids
 from datetime import datetime, timezone
 import random
@@ -6,8 +6,6 @@ import random
 # ==============================
 # 🔹 OPENSEARCH CONNECTION
 # ==============================
-OPENSEARCH_HOST = "vpc-ott-es-prod-tno62hs6fe7gs6zojencjn4eai.ap-south-1.es.amazonaws.com"
-INDEX_NAME      = "ott_search_tv"
 
 MAX_SYNONYMS_PER_TITLE = 3
 
@@ -62,12 +60,7 @@ def is_generic_synonym(synonym):
 # 🔹 OPENSEARCH CLIENT
 # ==============================
 def _get_es_client():
-    return OpenSearch(
-        hosts=[{"host": OPENSEARCH_HOST, "port": 443}],
-        use_ssl=True,
-        verify_certs=True,
-        ssl_show_warn=False,
-    )
+    return get_es_client()
 
 
 def is_currently_live(title_name):

@@ -1,12 +1,5 @@
-from opensearchpy import OpenSearch
+from config.opensearch_client import get_es_client, INDEX_NAME
 from config.mongo_client import get_active_provider_ids
-
-# ==============================
-# 🔹 OPENSEARCH CONNECTION
-# ==============================
-OPENSEARCH_HOST = "vpc-ott-es-prod-tno62hs6fe7gs6zojencjn4eai.ap-south-1.es.amazonaws.com"
-INDEX_NAME      = "ott_search_tv"
-
 
 def get_premium_titles(limit=10):
     """
@@ -19,7 +12,6 @@ def get_premium_titles(limit=10):
     provider_ids = get_active_provider_ids()
 
     es = OpenSearch(
-        hosts=[{"host": OPENSEARCH_HOST, "port": 443}],
         use_ssl=True,
         verify_certs=True,
         ssl_show_warn=False,
@@ -50,7 +42,6 @@ def get_premium_titles(limit=10):
         "sort": [{"release_date": {"order": "desc"}}]
     }
 
-    response = es.search(index=INDEX_NAME, body=query)
 
     titles = [
         hit["_source"]["name"]

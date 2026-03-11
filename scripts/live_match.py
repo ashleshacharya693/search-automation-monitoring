@@ -1,4 +1,4 @@
-from opensearchpy import OpenSearch
+from config.opensearch_client import get_es_client, INDEX_NAME
 from config.mongo_client import get_active_provider_ids
 import csv
 from datetime import datetime, timezone
@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 # ==============================
 # 🔹 OPENSEARCH CONNECTION
 # ==============================
-OPENSEARCH_HOST = "vpc-ott-es-prod-tno62hs6fe7gs6zojencjn4eai.ap-south-1.es.amazonaws.com"
-INDEX_NAME      = "ott_search_tv"
 
 
 def get_live_match_titles(limit=10):
@@ -24,12 +22,7 @@ def get_live_match_titles(limit=10):
     # ✅ Always fresh from MongoDB — no hardcoding needed
     provider_ids = get_active_provider_ids()
 
-    es = OpenSearch(
-        hosts=[{"host": OPENSEARCH_HOST, "port": 443}],
-        use_ssl=True,
-        verify_certs=True,
-        ssl_show_warn=False,
-    )
+    es = get_es_client()
 
     # Today's UTC date boundaries
     now         = datetime.now(timezone.utc)
