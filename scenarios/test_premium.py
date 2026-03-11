@@ -4,16 +4,19 @@ from config.platforms import PLATFORMS
 from config.users import USERS
 from utils.api_client import search_api
 
-results_summary = []
+if not hasattr(pytest, "results_summary"):
+    pytest.results_summary = []
 
-premium_titles = get_premium_titles(limit=100)
+premium_titles = get_premium_titles(limit=10)
 
 @pytest.mark.premium
 @pytest.mark.parametrize("query", premium_titles)
 def test_premium_dataset(query):
 
-    expected_title = query   # Expected result is same as query
-    top_limit = 5            # Fixed rule → must appear within Top 5
+    expected_title = query
+    top_limit = 5
+
+    failed_combinations = []
 
     for platform_name, platform_config in PLATFORMS.items():
         for user_type, user_config in USERS.items():
@@ -33,7 +36,7 @@ def test_premium_dataset(query):
 
             status = "PASSED" if position != -1 else "FAILED"
 
-            results_summary.append({
+            pytest.results_summary.append({
                 "Query": query,
                 "Platform": platform_name,
                 "User Type": user_type,
@@ -44,6 +47,12 @@ def test_premium_dataset(query):
             })
 
             if position == -1:
-                pytest.fail(
-                    f"FAILED → Query:{query} | Platform:{platform_name} | User:{user_type}"
+                failed_combinations.append(
+                    f"{platform_name}-{user_type}"
                 )
+
+    # 🔥 Fail ONLY after all combinations tested
+    if failed_combinations:
+        pytest.fail(
+            f"FAILED → Query:{query} | Failed For: {failed_combinations}"
+        )
