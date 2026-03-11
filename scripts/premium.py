@@ -1,6 +1,7 @@
 from config.opensearch_client import get_es_client, INDEX_NAME
 from config.mongo_client import get_active_provider_ids
 
+
 def get_premium_titles(limit=10):
     """
     Fetch latest published premium titles directly from OpenSearch.
@@ -11,11 +12,7 @@ def get_premium_titles(limit=10):
     # ✅ Always fresh from MongoDB — no hardcoding needed
     provider_ids = get_active_provider_ids()
 
-    es = OpenSearch(
-        use_ssl=True,
-        verify_certs=True,
-        ssl_show_warn=False,
-    )
+    es = get_es_client()
 
     query = {
         "size": limit,
@@ -33,7 +30,7 @@ def get_premium_titles(limit=10):
                     },
                     {
                         "terms": {
-                            "where_to_watch.provider.id.keyword": provider_ids  # ✅ dynamic
+                            "where_to_watch.provider.id.keyword": provider_ids
                         }
                     }
                 ]
@@ -42,6 +39,7 @@ def get_premium_titles(limit=10):
         "sort": [{"release_date": {"order": "desc"}}]
     }
 
+    response = es.search(index=INDEX_NAME, body=query)
 
     titles = [
         hit["_source"]["name"]
