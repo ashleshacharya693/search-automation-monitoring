@@ -27,4 +27,5 @@ markers = [
     "premium: marks tests as premium content tests",
     "live_match: marks tests as live match content tests",
     "offboarded: marks tests as offboarded provider content tests",
+    "fuzzy_synonym: marks tests as fuzzy and synonym search tests",
 ]

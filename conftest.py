@@ -3,7 +3,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-
 # ==============================
 # 🔹 SHARED HELPERS
 # ==============================
@@ -128,3 +127,15 @@ def pytest_sessionfinish(session, exitstatus):
         )
     else:
         print("\n⚠️  No offboarded results to report.")
+
+    # ── Fuzzy & Synonym report ────────────────────────────────────────────────
+    fuzzy_results = getattr(pytest, "fuzzy_results_summary", [])
+    if fuzzy_results:
+        _save_report(
+            results     = fuzzy_results,
+            sheet_title = "Fuzzy & Synonym Report",
+            filename    = "reports/fuzzy_synonym_report.xlsx",
+            label       = "Fuzzy & Synonym",
+        )
+    else:
+        print("\n⚠️  No fuzzy/synonym results to report.")
