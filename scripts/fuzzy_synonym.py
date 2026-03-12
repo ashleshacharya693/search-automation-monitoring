@@ -150,9 +150,10 @@ def _fetch_from_opensearch(extra_filters=None, limit=10):
     es = get_es_client()
 
     filters = [
-        {"term": {"status.keyword": "published"}},
+        {"term":  {"status.keyword": "published"}},
         {"terms": {"content_type.keyword": ["movie", "show", "live_tv", "live TV", "live-tv", "sport"]}},
         {"terms": {"where_to_watch.provider.id.keyword": provider_ids}},
+        {"term":  {"is_live_match": False}},   # exclude live matches — they go to test_live_match
     ]
     if extra_filters:
         filters.extend(extra_filters)
@@ -245,7 +246,9 @@ def get_live_match_fuzzy_synonym_data(limit=10):
 
 
 def get_all_fuzzy_synonym_data(limit=10):
-    return get_premium_fuzzy_synonym_data(limit) + get_live_match_fuzzy_synonym_data(limit)
+    # Only premium content (movies, shows, live_tv, sport — excluding live matches)
+    # Live matches are tested separately in test_live_match.py
+    return get_premium_fuzzy_synonym_data(limit)
 
 
 # ==============================

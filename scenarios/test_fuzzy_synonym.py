@@ -1,7 +1,6 @@
 from scripts.fuzzy_synonym import (
     get_all_fuzzy_synonym_data,
-    is_currently_live,
-    validate_generic_synonym_results
+    is_currently_live
 )
 import pytest
 from config.platforms import PLATFORMS
@@ -45,16 +44,12 @@ TOP_LIMITS = {
 # Build parametrize lists
 # Separate generic synonyms from the rest
 # ==============================
-test_params          = []   # all non-generic tests
-generic_synonym_params = []  # generic synonym tests (unique queries only)
-
-seen_generic_queries = set()  # avoid duplicate generic queries
+test_params = []
 
 for item in all_data:
     name   = item["name"]
     source = item["source"]
 
-    # Non-generic tests — check specific title position
     test_params.append((name, item["exact"],             "exact",             "N/A", source))
     test_params.append((name, item["partial_words"],     "partial_words",     "N/A", source))
     test_params.append((name, item["partial_prefix"],    "partial_prefix",    "N/A", source))
@@ -70,11 +65,7 @@ for item in all_data:
     for syn in item["synonyms"]:
         if syn["type"] == "specific":
             test_params.append((name, syn["text"], "synonym_specific", "specific", source))
-        else:
-            # Generic synonyms — deduplicate, test result quality not specific title
-            if syn["text"] not in seen_generic_queries:
-                seen_generic_queries.add(syn["text"])
-                generic_synonym_params.append((syn["text"], source))
+        # generic synonyms moved to test_live_match.py
 
 
 # ==============================
@@ -121,53 +112,4 @@ def test_fuzzy_synonym_dataset(expected_title, query, query_type, synonym_catego
         pytest.fail(
             f"FAILED → [{query_type}] "
             f"Query: '{query}' | Expected: '{expected_title}'"
-        )
-
-
-# ==============================
-# 🔹 TEST 2 — Generic synonym quality check
-# Checks ALL results are live, not just one title
-# ==============================
-@pytest.mark.fuzzy_synonym
-@pytest.mark.parametrize("query,source", generic_synonym_params)
-def test_generic_synonym_result_quality(query, source):
-    """
-    For generic synonyms like 'today's match', 'live sport' etc.
-    Validates that ALL results returned are live matches.
-    A non-live result appearing = real bug in search ranking.
-    """
-    result = validate_generic_synonym_results(query, _platform_config, _user_config)
-
-    if result["total_live"] == 0:
-        pytest.skip(f"No live matches today — skipping generic synonym test for '{query}'")
-
-    status = "PASSED" if result["passed"] else "FAILED"
-
-    # Build readable live match summary
-    found_titles   = [t for t in result["all_live_titles"] if t not in result["missing"]]
-    missing_titles = result["missing"]
-
-    found_str  = ", ".join(found_titles)  if found_titles  else "None"
-    missing_str = ", ".join(missing_titles) if missing_titles else "None"
-
-    pytest.fuzzy_results_summary.append({
-        "Expected Title":        f"ALL {result['total_live']} live matches should appear",
-        "Query Used":            query,
-        "Query Type":            "synonym_generic",
-        "Synonym Category":      "generic",
-        "Content Source":        source,
-        "Platform":              _platform_name,
-        "User Type":             _user_type,
-        "Top Limit":             result["total_live"],
-        "Position Found":        f"{result['found_in_results']}/{result['total_live']} found",
-        "Found Live Matches":    found_str,
-        "Missing Live Matches":  missing_str,
-        "Response Time (sec)":   round(result["response_time"], 3),
-        "Status":                status,
-    })
-
-    if not result["passed"]:
-        pytest.fail(
-            f"FAILED → [synonym_generic] Query: '{query}' | "
-            f"Missing live matches: {result['missing']}"
         )
