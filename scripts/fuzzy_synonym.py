@@ -356,6 +356,7 @@ def validate_generic_synonym_results(query, platform_config, user_config):
 
     return {
         "total_live":       len(all_live_titles),
+        "all_live_titles":  all_live_titles,
         "found_in_results": found_count,
         "missing":          missing,
         "passed":           len(missing) == 0,

@@ -143,18 +143,27 @@ def test_generic_synonym_result_quality(query, source):
 
     status = "PASSED" if result["passed"] else "FAILED"
 
+    # Build readable live match summary
+    found_titles   = [t for t in result["all_live_titles"] if t not in result["missing"]]
+    missing_titles = result["missing"]
+
+    found_str  = ", ".join(found_titles)  if found_titles  else "None"
+    missing_str = ", ".join(missing_titles) if missing_titles else "None"
+
     pytest.fuzzy_results_summary.append({
-        "Expected Title":      f"ALL {result['total_live']} live matches should appear",
-        "Query Used":          query,
-        "Query Type":          "synonym_generic",
-        "Synonym Category":    "generic",
-        "Content Source":      source,
-        "Platform":            _platform_name,
-        "User Type":           _user_type,
-        "Top Limit":           result["total_live"],
-        "Position Found":      f"{result['found_in_results']}/{result['total_live']} found",
-        "Response Time (sec)": round(result["response_time"], 3),
-        "Status":              status,
+        "Expected Title":        f"ALL {result['total_live']} live matches should appear",
+        "Query Used":            query,
+        "Query Type":            "synonym_generic",
+        "Synonym Category":      "generic",
+        "Content Source":        source,
+        "Platform":              _platform_name,
+        "User Type":             _user_type,
+        "Top Limit":             result["total_live"],
+        "Position Found":        f"{result['found_in_results']}/{result['total_live']} found",
+        "Found Live Matches":    found_str,
+        "Missing Live Matches":  missing_str,
+        "Response Time (sec)":   round(result["response_time"], 3),
+        "Status":                status,
     })
 
     if not result["passed"]:
