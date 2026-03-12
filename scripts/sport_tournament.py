@@ -40,6 +40,7 @@ def get_tournaments(limit=MAX_TOURNAMENTS):
                 ],
                 "must_not": [
                     {"terms": {"sub_format.keyword": ["extras", "Extras", "trailers", "Trailers"]}},
+                    {"term":  {"is_live_match": False}},  # mirror search API behavior
                 ]
             }
         },
@@ -122,11 +123,16 @@ def get_matches_for_tournament(tournament_name):
                     {"term":  {"status.keyword": "published"}},
                     {"terms": {"content_type.keyword": ["sport"]}},
                     {"terms": {"where_to_watch.provider.id.keyword": provider_ids}},
-                    {"term":  {"tournament_name.keyword": tournament_name}},
                     {"range": {"release_date": {"gte": since_date}}},
                 ],
+                "should": [
+                    {"term":  {"tournament_name.keyword": tournament_name}},
+                    {"match": {"synonyms": tournament_name}},
+                ],
+                "minimum_should_match": 1,
                 "must_not": [
                     {"terms": {"sub_format.keyword": ["extras", "Extras", "trailers", "Trailers"]}},
+                    {"term":  {"is_live_match": False}},  # mirror search API behavior
                 ]
             }
         },

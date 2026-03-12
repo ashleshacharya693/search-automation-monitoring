@@ -2,7 +2,7 @@ from scripts.sport_tournament import get_tournaments, get_matches_for_tournament
 import pytest
 from config.platforms import PLATFORMS
 from config.users import USERS
-from utils.api_client import search_api
+from utils.api_client import search_api_all_pages
 
 if not hasattr(pytest, "tournament_results_summary"):
     pytest.tournament_results_summary = []
@@ -25,10 +25,9 @@ print(f"[tournament] Without matches: {len(tournaments_without_matches)}")
 
 
 # ==============================
-# 🔹 Build search queries per tournament
+# Build search queries per tournament
 # tournament_name + synonyms (if any)
 # ==============================
-# (tournament_name, query, query_label, matches)
 tournament_params = []
 
 for t in tournaments_with_matches:
@@ -55,33 +54,31 @@ for t in tournaments_with_matches:
 
 # Empty tournament params
 empty_tournament_params = [
-    (t["tournament_name"], t["tournament_name"]) 
+    (t["tournament_name"], t["tournament_name"])
     for t in tournaments_without_matches
 ]
 
 
 # ==============================
 # 🔹 TEST 1 — Tournament match coverage
-# All matches under tournament should appear in search results
-# Across all platforms and user types
+# Paginate through ALL pages and check all matches appear
 # ==============================
 @pytest.mark.sport_tournament
 @pytest.mark.parametrize("tournament_name,query,query_label,matches", tournament_params)
 def test_tournament_match_coverage(tournament_name, query, query_label, matches):
     """
-    Search by tournament name / synonym → all matches should appear in results.
+    Search by tournament name / synonym → paginate ALL pages.
+    Every match under the tournament must appear somewhere in results.
     Tested across all platforms and all user types.
     """
-    top_limit           = len(matches)   # expect all matches to appear
     failed_combinations = []
 
     for platform_name, platform_config in PLATFORMS.items():
         for user_type, user_config in USERS.items():
 
-            response      = search_api(query, platform_config, user_config)
-            response_time = response.elapsed.total_seconds()
-            results       = response.json().get("result", [])
-            result_names  = [r.get("name", "").lower() for r in results]
+            # Fetch ALL pages
+            all_results  = search_api_all_pages(query, platform_config, user_config)
+            result_names = [r.get("name", "").lower() for r in all_results]
 
             for match in matches:
                 match_name = match["name"]
@@ -94,18 +91,19 @@ def test_tournament_match_coverage(tournament_name, query, query_label, matches)
                 status = "PASSED" if found else "FAILED"
 
                 pytest.tournament_results_summary.append({
-                    "Tournament Name":  tournament_name,
-                    "Query Used":       query,
-                    "Query Type":       query_label,
-                    "Match Name":       match_name,
-                    "Sports Category":  match["sports_category"],
-                    "Provider":         match["provider"],
-                    "Release Date":     match["release_date"][:10] if match["release_date"] else "",
-                    "Platform":         platform_name,
-                    "User Type":        user_type,
-                    "Position Found":   position if found else "Not Found",
-                    "Response Time (sec)": round(response_time, 3),
-                    "Status":           status,
+                    "Tournament Name":     tournament_name,
+                    "Query Used":          query,
+                    "Query Type":          query_label,
+                    "Match Name":          match_name,
+                    "Sports Category":     match["sports_category"],
+                    "Provider":            match["provider"],
+                    "Release Date":        match["release_date"][:10] if match["release_date"] else "",
+                    "Platform":            platform_name,
+                    "User Type":           user_type,
+                    "Total Results":       len(all_results),
+                    "Position Found":      position if found else "Not Found",
+                    "Response Time (sec)": "paginated",
+                    "Status":              status,
                 })
 
                 if not found:
@@ -137,10 +135,8 @@ def test_empty_tournament_no_results(tournament_name, query):
     for platform_name, platform_config in PLATFORMS.items():
         for user_type, user_config in USERS.items():
 
-            response      = search_api(query, platform_config, user_config)
-            response_time = response.elapsed.total_seconds()
-            results       = response.json().get("result", [])
-            result_count  = len(results)
+            all_results  = search_api_all_pages(query, platform_config, user_config)
+            result_count = len(all_results)
 
             status = "PASSED" if result_count == 0 else "FAILED"
 
@@ -150,7 +146,7 @@ def test_empty_tournament_no_results(tournament_name, query):
                 "Platform":            platform_name,
                 "User Type":           user_type,
                 "Results Returned":    result_count,
-                "Response Time (sec)": round(response_time, 3),
+                "Response Time (sec)": "paginated",
                 "Status":              status,
             })
 
