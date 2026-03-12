@@ -49,14 +49,14 @@ def _write_sheet(ws, results, title):
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill(start_color="343A40", fill_type="solid")
 
-    # Data rows
+    # Data rows — only style FAILED rows to avoid performance issues on large datasets
+    failed_fill = PatternFill(start_color="FFC7CE", fill_type="solid")
     for row_num, row_data in enumerate(results, 2):
+        is_failed = row_data["Status"] == "FAILED"
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=row_num, column=col_num, value=row_data[header])
-            if row_data["Status"] == "FAILED":
-                cell.fill = PatternFill(start_color="FFC7CE", fill_type="solid")
-            else:
-                cell.fill = PatternFill(start_color="C6EFCE", fill_type="solid")
+            if is_failed:
+                cell.fill = failed_fill
 
     # Auto column width
     for col in ws.columns:
