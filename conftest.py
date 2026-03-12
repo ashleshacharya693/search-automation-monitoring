@@ -1,7 +1,34 @@
+import random
+import os
 import pytest
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+# ==============================
+# 🔹 SET RANDOM PLATFORM & USER BEFORE COLLECTION
+# ==============================
+
+# ==============================
+# 🔹 CUSTOM CLI OPTIONS
+# ==============================
+def pytest_addoption(parser):
+    parser.addoption("--platform", action="store", default=None, help="Platform to test (web/app/tv)")
+    parser.addoption("--user", action="store", default=None, help="User type to test")
+
+def pytest_configure(config):
+    from config.platforms import PLATFORMS
+    from config.users import USERS
+
+    platform = random.choice(list(PLATFORMS.keys()))
+    user     = random.choice(list(USERS.keys()))
+
+    os.environ["FUZZY_PLATFORM"] = platform
+    os.environ["FUZZY_USER"]     = user
+
+    print(f"\n[conftest] Fuzzy test → Platform: {platform} | User: {user}")
+
+
 
 # ==============================
 # 🔹 SHARED HELPERS
@@ -139,3 +166,27 @@ def pytest_sessionfinish(session, exitstatus):
         )
     else:
         print("\n⚠️  No fuzzy/synonym results to report.")
+
+    # ── Sport Tournament report ───────────────────────────────────────────────
+    tournament_results = getattr(pytest, "tournament_results_summary", [])
+    if tournament_results:
+        _save_report(
+            results     = tournament_results,
+            sheet_title = "Tournament Match Coverage",
+            filename    = "reports/sport_tournament_report.xlsx",
+            label       = "Sport Tournament",
+        )
+    else:
+        print("\n⚠️  No tournament match results to report.")
+
+    # ── Empty Tournament report ───────────────────────────────────────────────
+    empty_tournament_results = getattr(pytest, "empty_tournament_results_summary", [])
+    if empty_tournament_results:
+        _save_report(
+            results     = empty_tournament_results,
+            sheet_title = "Empty Tournament Check",
+            filename    = "reports/empty_tournament_report.xlsx",
+            label       = "Empty Tournament",
+        )
+    else:
+        print("\n⚠️  No empty tournament results to report.")

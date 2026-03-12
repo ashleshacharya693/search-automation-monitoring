@@ -28,4 +28,5 @@ markers = [
     "live_match: marks tests as live match content tests",
     "offboarded: marks tests as offboarded provider content tests",
     "fuzzy_synonym: marks tests as fuzzy and synonym search tests",
+    "sport_tournament: marks tests as sport tournament search tests",   # ← add this
 ]

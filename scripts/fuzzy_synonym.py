@@ -153,7 +153,6 @@ def _fetch_from_opensearch(extra_filters=None, limit=10):
         {"term":  {"status.keyword": "published"}},
         {"terms": {"content_type.keyword": ["movie", "show", "live_tv", "live TV", "live-tv", "sport"]}},
         {"terms": {"where_to_watch.provider.id.keyword": provider_ids}},
-        {"term":  {"is_live_match": False}},   # exclude live matches — they go to test_live_match
     ]
     if extra_filters:
         filters.extend(extra_filters)
@@ -165,7 +164,10 @@ def _fetch_from_opensearch(extra_filters=None, limit=10):
         "query": {
             "bool": {
                 "filter": filters,
-                "must_not": [{"terms": {"sub_format.keyword": ["extras", "Extras", "trailers", "Trailers"]}}],
+                "must_not": [
+                    {"terms": {"sub_format.keyword": ["extras", "Extras", "trailers", "Trailers"]}},
+                    {"term":  {"is_live_match": True}},   # exclude live matches → test_live_match.py
+                ],
             }
         },
         "sort": [{"release_date": {"order": "desc"}}],
